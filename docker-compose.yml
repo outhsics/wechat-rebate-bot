@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    container_name: wechat-rebate-bot
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
