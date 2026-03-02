@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -11,7 +12,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     openid: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
-    nickname: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    nickname: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     link_logs: Mapped[list["LinkLog"]] = relationship("LinkLog", back_populates="user")
@@ -22,7 +23,7 @@ class LinkLog(Base):
     __tablename__ = "link_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     raw_openid: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
     platform: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -32,14 +33,14 @@ class LinkLog(Base):
     quote_rebate: Mapped[float] = mapped_column(Float, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
-    user: Mapped[User | None] = relationship("User", back_populates="link_logs")
+    user: Mapped[Optional[User]] = relationship("User", back_populates="link_logs")
 
 
 class Order(Base):
     __tablename__ = "orders"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     raw_openid: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
     platform: Mapped[str] = mapped_column(String(32), nullable=False)
     product_id: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -50,4 +51,4 @@ class Order(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    user: Mapped[User | None] = relationship("User", back_populates="orders")
+    user: Mapped[Optional[User]] = relationship("User", back_populates="orders")
