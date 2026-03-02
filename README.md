@@ -14,7 +14,7 @@
 - `app/main.py`：入口与公众号回调
 - `app/services/message_service.py`：消息分发
 - `app/services/parser.py`：链接识别
-- `app/services/affiliate/*`：平台适配器（当前为可替换 mock 实现）
+- `app/services/affiliate/*`：平台适配器（京东支持真实接口调用，拼多多/淘宝为 mock）
 - `app/services/ai_service.py`：AI 问答
 - `app/api/admin.py`：管理 API
 - `docs/DEPLOYMENT.md`：生产部署
@@ -46,6 +46,11 @@ curl http://127.0.0.1:8080/healthz
 - `WECHAT_APP_ID/WECHAT_APP_SECRET`：后续如需客服异步消息与用户信息可用
 - `OPENAI_API_KEY`：AI 问答（不填则使用内置兜底回复）
 - `REBATE_RATE`：返利比例（默认 0.7）
+- `JD_AFFILIATE_APP_KEY/JD_AFFILIATE_APP_SECRET`：京东联盟开放平台凭证
+- `JD_AFFILIATE_ACCESS_TOKEN`：可选，部分账号需要
+- `JD_AFFILIATE_API_URL`：默认 `https://api.jd.com/routerjson`
+- `JD_AFFILIATE_METHOD`：默认 `jd.union.open.goods.jingfen.query`
+- `JD_AFFILIATE_ELITE_ID`：默认 `1`
 
 ## 管理接口
 - `GET /api/users`
@@ -67,9 +72,9 @@ curl -X POST http://127.0.0.1:8080/api/orders/mock-confirm \
 ```
 
 ## 真实返利闭环怎么接
-当前适配器返回的是稳定 mock 数据，便于联调。
-你上线前替换下面三个文件中的 `get_quote`：
-- `app/services/affiliate/jd.py`
+当前行为：
+- 京东：优先走真实联盟 API，失败自动回退到 mock。
+- 拼多多、淘宝：当前为 mock，实现文件如下：
 - `app/services/affiliate/pdd.py`
 - `app/services/affiliate/taobao.py`
 
@@ -98,4 +103,3 @@ git add .
 git commit -m "feat: initial wechat rebate bot mvp"
 gh repo create wechat-rebate-bot --private --source . --remote origin --push
 ```
-

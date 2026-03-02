@@ -26,6 +26,10 @@ class Settings(BaseSettings):
 
     jd_affiliate_app_key: str = ""
     jd_affiliate_app_secret: str = ""
+    jd_affiliate_access_token: str = ""
+    jd_affiliate_api_url: str = "https://api.jd.com/routerjson"
+    jd_affiliate_method: str = "jd.union.open.goods.jingfen.query"
+    jd_affiliate_elite_id: int = 1
     pdd_client_id: str = ""
     pdd_client_secret: str = ""
     taobao_app_key: str = ""
