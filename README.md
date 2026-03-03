@@ -6,6 +6,8 @@
 - 公众号消息回调（签名校验 + XML 收发）
 - 识别商品链接（京东/拼多多/淘宝）
 - 返回券后价、预计佣金、预计返利、返利码
+- 用户可发送“绑定收款”绑定收款账号
+- 管理端可一键确认打款并给用户回执消息
 - 非商品消息走 AI 客服回复（支持 OpenAI）
 - SQLite 数据落库（用户、链接日志、订单）
 - 管理接口（查看用户、日志、订单；模拟结算）
@@ -43,7 +45,7 @@ curl http://127.0.0.1:8080/healthz
 
 ## 环境变量
 - `WECHAT_TOKEN`：公众号服务器配置 Token
-- `WECHAT_APP_ID/WECHAT_APP_SECRET`：后续如需客服异步消息与用户信息可用
+- `WECHAT_APP_ID/WECHAT_APP_SECRET`：用于管理端确认打款后主动给用户发送回执
 - `OPENAI_API_KEY`：AI 问答（不填则使用内置兜底回复）
 - `REBATE_RATE`：返利比例（默认 0.7）
 - `JD_AFFILIATE_APP_KEY/JD_AFFILIATE_APP_SECRET`：京东联盟开放平台凭证
@@ -56,7 +58,10 @@ curl http://127.0.0.1:8080/healthz
 - `GET /api/users`
 - `GET /api/link-logs`
 - `GET /api/orders`
+- `GET /api/payout-accounts`
+- `GET /api/payout-records`
 - `POST /api/orders/mock-confirm`
+- `POST /api/orders/{order_id}/confirm-payout`
 
 示例：
 ```bash
@@ -70,6 +75,21 @@ curl -X POST http://127.0.0.1:8080/api/orders/mock-confirm \
     "commission_amount":15.5
   }'
 ```
+
+确认打款并回执用户：
+```bash
+curl -X POST http://127.0.0.1:8080/api/orders/mock_xxx/confirm-payout \
+  -H 'Content-Type: application/json' \
+  -d '{"note":"人工审核通过，已打款"}'
+```
+
+## 用户侧命令
+- `绑定收款`：进入收款账号绑定流程
+- `查看收款`：查看已绑定的收款账号
+- 绑定输入示例：
+  - `支付宝: your_account@example.com`
+  - `微信: wxid_xxx`
+  - `银行卡: 6222xxxx`
 
 ## 真实返利闭环怎么接
 当前行为：

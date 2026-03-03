@@ -27,6 +27,10 @@ def _parse_jd(url: str) -> str | None:
     if m:
         return m.group(1)
 
+    m = re.search(r"item\.m\.jd\.com/product/(\d+)\.html", url)
+    if m:
+        return m.group(1)
+
     parsed = urlparse(url)
     qs = parse_qs(parsed.query)
     if "sku" in qs and qs["sku"]:

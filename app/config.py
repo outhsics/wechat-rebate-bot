@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     app_port: int = 8080
     log_level: str = "INFO"
 
-    wechat_token: str = "replace_me"
+    wechat_token: str = "rebot1234561"
     wechat_aes_key: str = ""
     wechat_app_id: str = ""
     wechat_app_secret: str = ""
