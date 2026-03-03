@@ -1,17 +1,30 @@
 import re
 import time
 from collections import defaultdict, deque
+from uuid import uuid4
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import ConversationState, LinkLog, PayoutAccount, User
+from app.models import (
+    ConversationState,
+    LinkLog,
+    Order,
+    PayoutAccount,
+    PayoutRecord,
+    RiskBlocklist,
+    User,
+    WithdrawalRequest,
+)
 from app.services.ai_service import AIService
 from app.services.parser import parse_affiliate_input
 from app.services.rebate_service import RebateService
 
 BIND_PAYOUT_COMMANDS = {"绑定收款", "绑定收款账号", "绑定提现", "绑定提现账号"}
 SHOW_PAYOUT_COMMANDS = {"查看收款", "我的收款", "收款账号"}
+WITHDRAW_COMMANDS = {"提现", "申请提现"}
+SHOW_BALANCE_COMMANDS = {"提现余额", "可提现", "我的返利", "余额"}
 CANCEL_COMMANDS = {"取消", "退出", "算了"}
 
 
@@ -154,6 +167,79 @@ class MessageService:
         queue.append(now)
         return False, 0
 
+    @staticmethod
+    def _is_blocked(db: Session, openid: str) -> bool:
+        row = (
+            db.query(RiskBlocklist)
+            .filter(RiskBlocklist.openid == openid, RiskBlocklist.is_active == 1)
+            .first()
+        )
+        return row is not None
+
+    @staticmethod
+    def _extract_withdraw_amount(content: str) -> float | None:
+        match = re.search(r"(\d+(?:\.\d{1,2})?)", content)
+        if not match:
+            return None
+        try:
+            value = float(match.group(1))
+        except ValueError:
+            return None
+        if value <= 0:
+            return None
+        return round(value, 2)
+
+    def _get_available_balance(self, db: Session, openid: str) -> float:
+        settled_total = (
+            db.query(func.sum(Order.rebate_amount))
+            .filter(Order.raw_openid == openid, Order.status.in_(["settled", "paid_out"]))
+            .scalar()
+            or 0
+        )
+        paid_total = (
+            db.query(func.sum(PayoutRecord.amount))
+            .filter(PayoutRecord.openid == openid, PayoutRecord.status.in_(["confirmed", "paid"]))
+            .scalar()
+            or 0
+        )
+        withdrawing_total = (
+            db.query(func.sum(WithdrawalRequest.amount))
+            .filter(
+                WithdrawalRequest.openid == openid,
+                WithdrawalRequest.status.in_(["pending", "approved"]),
+            )
+            .scalar()
+            or 0
+        )
+        return round(max(0.0, float(settled_total) - float(paid_total) - float(withdrawing_total)), 2)
+
+    def _show_withdraw_balance(self, db: Session, openid: str) -> str:
+        amount = self._get_available_balance(db, openid)
+        return (
+            f"当前可提现余额：¥{amount}\n"
+            "发送“申请提现 10”即可提交提现工单。"
+        )
+
+    def _create_withdraw_request(
+        self,
+        db: Session,
+        user: User,
+        openid: str,
+        amount: float,
+    ) -> WithdrawalRequest:
+        row = WithdrawalRequest(
+            id=f"wd_{uuid4().hex[:18]}",
+            user_id=user.id,
+            openid=openid,
+            amount=amount,
+            status="pending",
+            note="user_submit",
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return row
+
     def handle_message(self, db: Session, payload: dict[str, str]) -> str | None:
         msg_type = payload.get("MsgType", "")
         from_user = payload.get("FromUserName", "")
@@ -179,6 +265,8 @@ class MessageService:
         limited, retry_after = self._is_rate_limited(from_user)
         if limited:
             return f"消息太频繁了，请 {retry_after} 秒后再试。"
+        if self._is_blocked(db, from_user):
+            return "账号当前处于风控状态，请联系客服处理。"
 
         if content in BIND_PAYOUT_COMMANDS:
             self._upsert_state(db, from_user, "bind_payout_account")
@@ -192,6 +280,37 @@ class MessageService:
 
         if content in SHOW_PAYOUT_COMMANDS:
             return self._show_payout_account(db, from_user)
+
+        if content in SHOW_BALANCE_COMMANDS:
+            return self._show_withdraw_balance(db, from_user)
+
+        if any(content.startswith(x) for x in WITHDRAW_COMMANDS):
+            payout = (
+                db.query(PayoutAccount)
+                .filter(PayoutAccount.openid == from_user, PayoutAccount.is_active == 1)
+                .first()
+            )
+            if not payout:
+                return "你还没绑定收款账号。请先发送“绑定收款”。"
+
+            amount = self._extract_withdraw_amount(content)
+            if amount is None:
+                return "请按格式发送：申请提现 10"
+
+            min_amount = float(self.settings.min_withdraw_amount)
+            if amount < min_amount:
+                return f"单次提现金额不能低于 ¥{min_amount}。"
+
+            available = self._get_available_balance(db, from_user)
+            if amount > available:
+                return f"余额不足，可提现 ¥{available}。"
+
+            request = self._create_withdraw_request(db, user, from_user, amount)
+            return (
+                f"提现申请已提交：{request.id}\n"
+                f"金额：¥{amount}\n"
+                "状态：待审核。"
+            )
 
         state = self._get_state(db, from_user)
         if state == "bind_payout_account":

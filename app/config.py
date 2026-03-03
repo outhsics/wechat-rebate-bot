@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     admin_api_key: str = "change_me"
     message_rate_limit_per_min: int = 30
+    min_withdraw_amount: float = 1.0
 
     wechat_token: str = "rebot1234561"
     wechat_aes_key: str = ""

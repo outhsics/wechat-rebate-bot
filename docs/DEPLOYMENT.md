@@ -15,6 +15,7 @@ cp .env.example .env
 # WECHAT_APP_SECRET
 # OPENAI_API_KEY
 # MESSAGE_RATE_LIMIT_PER_MIN
+# MIN_WITHDRAW_AMOUNT
 ```
 
 ## 3. 启动
@@ -34,4 +35,5 @@ docker compose up -d --build
 - 增加 Redis（限流、幂等）
 - 增加 MySQL（订单增长后替代 SQLite）
 - 管理接口统一带 `X-API-Key`，并加 Nginx IP 白名单
+- 联盟回传和管理接口分离域名/路径，并做请求签名
 - 引入 Sentry/Prometheus 做监控

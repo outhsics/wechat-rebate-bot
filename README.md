@@ -7,7 +7,9 @@
 - 识别商品链接（京东/拼多多/淘宝）
 - 返回券后价、预计佣金、预计返利、返利码
 - 用户可发送“绑定收款”绑定收款账号
+- 用户可发“提现余额/申请提现 10”提交提现工单
 - 管理端可一键确认打款并给用户回执消息
+- 管理端支持订单回传同步、提现审核、黑名单风控、日对账报表
 - 非商品消息走 AI 客服回复（支持 OpenAI）
 - SQLite 数据落库（用户、链接日志、订单）
 - 管理接口（查看用户、日志、订单；模拟结算）
@@ -47,6 +49,7 @@ curl http://127.0.0.1:8080/healthz
 - `WECHAT_TOKEN`：公众号服务器配置 Token
 - `ADMIN_API_KEY`：管理接口鉴权（请求头 `X-API-Key`）
 - `MESSAGE_RATE_LIMIT_PER_MIN`：单用户每分钟消息上限（默认 30）
+- `MIN_WITHDRAW_AMOUNT`：最小提现金额（默认 1 元）
 - `WECHAT_APP_ID/WECHAT_APP_SECRET`：用于管理端确认打款后主动给用户发送回执
 - `OPENAI_API_KEY`：AI 问答（不填则使用内置兜底回复）
 - `REBATE_RATE`：返利比例（默认 0.7）
@@ -60,8 +63,16 @@ curl http://127.0.0.1:8080/healthz
 - `GET /api/users`
 - `GET /api/link-logs`
 - `GET /api/orders`
+- `POST /api/orders/callback`
 - `GET /api/payout-accounts`
 - `GET /api/payout-records`
+- `GET /api/withdraw-requests`
+- `POST /api/withdraw-requests/{request_id}/approve`
+- `POST /api/withdraw-requests/{request_id}/reject`
+- `POST /api/withdraw-requests/{request_id}/mark-paid`
+- `GET /api/risk-blocklist`
+- `POST /api/risk-blocklist/upsert`
+- `GET /api/reports/reconciliation?day=2026-03-03`
 - `POST /api/orders/mock-confirm`
 - `POST /api/orders/{order_id}/confirm-payout`
 
@@ -87,9 +98,27 @@ curl -X POST http://127.0.0.1:8080/api/orders/mock_xxx/confirm-payout \
   -d '{"note":"人工审核通过，已打款"}'
 ```
 
+联盟订单回传同步：
+```bash
+curl -X POST http://127.0.0.1:8080/api/orders/callback \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: change_me_to_a_long_random_key' \
+  -d '{
+    "order_id":"jd_202603030001",
+    "openid":"o_user_xxx",
+    "platform":"jd",
+    "product_id":"100012043978",
+    "order_amount":199,
+    "commission_amount":15.5,
+    "status":"settled"
+  }'
+```
+
 ## 用户侧命令
 - `绑定收款`：进入收款账号绑定流程
 - `查看收款`：查看已绑定的收款账号
+- `提现余额`：查看当前可提现金额
+- `申请提现 10`：提交 10 元提现工单（待后台审核）
 - 绑定输入示例：
   - `支付宝: your_account@example.com`
   - `微信: wxid_xxx`

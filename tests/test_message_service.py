@@ -35,3 +35,9 @@ def test_rate_limit_hits_after_threshold():
     limited, retry_after = svc._is_rate_limited("openid_demo")
     assert limited
     assert retry_after > 0
+
+
+def test_extract_withdraw_amount():
+    svc = MessageService()
+    assert svc._extract_withdraw_amount("申请提现 12.8") == 12.8
+    assert svc._extract_withdraw_amount("提现") is None
