@@ -1,7 +1,10 @@
 import re
+import time
+from collections import defaultdict, deque
 
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.models import ConversationState, LinkLog, PayoutAccount, User
 from app.services.ai_service import AIService
 from app.services.parser import parse_affiliate_input
@@ -14,8 +17,10 @@ CANCEL_COMMANDS = {"取消", "退出", "算了"}
 
 class MessageService:
     def __init__(self) -> None:
+        self.settings = get_settings()
         self.ai_service = AIService()
         self.rebate_service = RebateService()
+        self._recent_messages: dict[str, deque[float]] = defaultdict(deque)
 
     def _get_or_create_user(self, db: Session, openid: str) -> User:
         user = db.query(User).filter(User.openid == openid).first()
@@ -133,6 +138,22 @@ class MessageService:
             "如需修改，请发送“绑定收款”。"
         )
 
+    def _is_rate_limited(self, openid: str) -> tuple[bool, int]:
+        limit = max(1, int(self.settings.message_rate_limit_per_min))
+        now = time.time()
+        time_window = 60
+
+        queue = self._recent_messages[openid]
+        while queue and now - queue[0] >= time_window:
+            queue.popleft()
+
+        if len(queue) >= limit:
+            retry_after = max(1, int(time_window - (now - queue[0])))
+            return True, retry_after
+
+        queue.append(now)
+        return False, 0
+
     def handle_message(self, db: Session, payload: dict[str, str]) -> str | None:
         msg_type = payload.get("MsgType", "")
         from_user = payload.get("FromUserName", "")
@@ -155,6 +176,9 @@ class MessageService:
             return "暂时只支持文本消息。请发送商品链接进行返利查询。"
 
         content = payload.get("Content", "").strip()
+        limited, retry_after = self._is_rate_limited(from_user)
+        if limited:
+            return f"消息太频繁了，请 {retry_after} 秒后再试。"
 
         if content in BIND_PAYOUT_COMMANDS:
             self._upsert_state(db, from_user, "bind_payout_account")

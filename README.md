@@ -45,6 +45,8 @@ curl http://127.0.0.1:8080/healthz
 
 ## 环境变量
 - `WECHAT_TOKEN`：公众号服务器配置 Token
+- `ADMIN_API_KEY`：管理接口鉴权（请求头 `X-API-Key`）
+- `MESSAGE_RATE_LIMIT_PER_MIN`：单用户每分钟消息上限（默认 30）
 - `WECHAT_APP_ID/WECHAT_APP_SECRET`：用于管理端确认打款后主动给用户发送回执
 - `OPENAI_API_KEY`：AI 问答（不填则使用内置兜底回复）
 - `REBATE_RATE`：返利比例（默认 0.7）
@@ -67,6 +69,7 @@ curl http://127.0.0.1:8080/healthz
 ```bash
 curl -X POST http://127.0.0.1:8080/api/orders/mock-confirm \
   -H 'Content-Type: application/json' \
+  -H 'X-API-Key: change_me_to_a_long_random_key' \
   -d '{
     "openid":"o_user_xxx",
     "platform":"jd",
@@ -80,6 +83,7 @@ curl -X POST http://127.0.0.1:8080/api/orders/mock-confirm \
 ```bash
 curl -X POST http://127.0.0.1:8080/api/orders/mock_xxx/confirm-payout \
   -H 'Content-Type: application/json' \
+  -H 'X-API-Key: change_me_to_a_long_random_key' \
   -d '{"note":"人工审核通过，已打款"}'
 ```
 
@@ -109,6 +113,7 @@ curl -X POST http://127.0.0.1:8080/api/orders/mock_xxx/confirm-payout \
 - 仅使用公众号官方消息能力，不接个人号自动化。
 - 明确提示“返利金额以联盟结算为准”。
 - 做防刷限制：同用户单位时间查询阈值。
+- 管理接口必须使用 `X-API-Key`，并放在内网或加 IP 白名单。
 - 保留订单与返利日志，便于申诉和对账。
 
 ## 测试

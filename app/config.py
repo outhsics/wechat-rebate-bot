@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8080
     log_level: str = "INFO"
+    admin_api_key: str = "change_me"
+    message_rate_limit_per_min: int = 30
 
     wechat_token: str = "rebot1234561"
     wechat_aes_key: str = ""

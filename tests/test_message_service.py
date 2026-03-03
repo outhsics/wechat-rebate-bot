@@ -23,3 +23,15 @@ def test_parse_payout_content_default_wechat():
 
 def test_mask_account():
     assert MessageService._mask_account("123456789") == "123***789"
+
+
+def test_rate_limit_hits_after_threshold():
+    svc = MessageService()
+    svc.settings.message_rate_limit_per_min = 1
+    limited, retry_after = svc._is_rate_limited("openid_demo")
+    assert not limited
+    assert retry_after == 0
+
+    limited, retry_after = svc._is_rate_limited("openid_demo")
+    assert limited
+    assert retry_after > 0

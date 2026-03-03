@@ -1,15 +1,28 @@
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.database import get_db
 from app.models import LinkLog, Order, PayoutAccount, PayoutRecord, User
 from app.services.wechat_mp_service import WeChatMPService
 
-router = APIRouter(prefix="/api", tags=["admin"])
+settings = get_settings()
+
+
+def require_admin_api_key(x_api_key: str | None = Header(default=None)) -> None:
+    if not x_api_key or x_api_key != settings.admin_api_key:
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+
+router = APIRouter(
+    prefix="/api",
+    tags=["admin"],
+    dependencies=[Depends(require_admin_api_key)],
+)
 wechat_mp_service = WeChatMPService()
 
 
